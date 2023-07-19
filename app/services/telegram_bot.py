@@ -4,7 +4,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardBu
 from uuid import UUID
 
 from services.database_lister import DatabaseLister
-from services.database_workout import DatabaseWorkoutOperator
+from services.database_workout import DatabaseWorkoutOperator, DatabaseRunOperator
 
 
 class TelegramBot:
@@ -12,10 +12,12 @@ class TelegramBot:
     def __init__(self,
                  token: str,
                  database_lister: DatabaseLister,
-                 database_workout_operator: DatabaseWorkoutOperator) -> None:
+                 database_workout_operator: DatabaseWorkoutOperator,
+                 database_run_operator: DatabaseRunOperator) -> None:
         self.token = token
         self.database_lister = database_lister
         self.database_workout_operator = database_workout_operator
+        self.database_run_operator = database_run_operator
 
         self.bot = AsyncTeleBot(token=token)
 
@@ -93,11 +95,18 @@ class TelegramBot:
             print('Error !!!')
         database_title: str = databases.get(database_id)
 
-        report: dict[str, dict[str, int]] = \
-            await self.database_workout_operator.get_report_last_workout(database_id=database_id,
+        if database_title.split('.')[1].strip() == 'Турник':
+            report: dict[str, dict[str, int]] = \
+                await self.database_workout_operator.get_report_last_workout(database_id=database_id,
+                                                                             title=database_title.split('.')[1].strip())
+            await self.bot.send_message(chat_id=call.message.chat.id,
+                                        text=self.database_workout_operator.convert_report_to_str_mess(report))
+        elif database_title.split('.')[1].strip() == 'Пробежка':
+            report = \
+                await self.database_run_operator.get_report_last_workout(database_id=database_id,
                                                                          title=database_title.split('.')[1].strip())
-        await self.bot.send_message(chat_id=call.message.chat.id,
-                                    text=self.database_workout_operator.convert_report_to_str_mess(report))
+            await self.bot.send_message(chat_id=call.message.chat.id,
+                                        text=self.database_run_operator.convert_report_to_str_mess(report))
 
     async def run(self):
         await self.bot.infinity_polling()
