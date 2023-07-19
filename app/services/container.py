@@ -3,7 +3,7 @@ from dependency_injector import containers, providers
 from services.telegram_bot import TelegramBot
 from services.database_lister import DatabaseLister
 from services.request_operator import RequestOperator
-from services.database_workout import DatabaseWorkoutOperator, DatabaseRunOperator
+from services.database_operator import DatabaseWorkoutOperator, DatabaseRunOperator
 
 
 class ApplicationContainer(containers.DeclarativeContainer):

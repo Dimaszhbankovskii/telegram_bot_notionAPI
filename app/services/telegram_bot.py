@@ -4,7 +4,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardBu
 from uuid import UUID
 
 from services.database_lister import DatabaseLister
-from services.database_workout import DatabaseWorkoutOperator, DatabaseRunOperator
+from services.database_operator import DatabaseWorkoutOperator, DatabaseRunOperator
 
 
 class TelegramBot:

@@ -26,18 +26,9 @@ class DatabaseOperator:
             }
         }
 
-
-class DatabaseWorkoutOperator(DatabaseOperator):
-
-    def __init__(self,
-                 request_operator: RequestOperator) -> None:
-        super().__init__(request_operator=request_operator)
-        self.template_exercise = re.compile(r'^[1-9].')
-        self.template_exercise_number = re.compile(r"^[1-9].[1-9]$")
-
-    async def __get_model_databases_by_title(self, title: str) -> list[Database]:
+    async def _get_model_databases_by_title(self, title: str) -> list[Database]:
         """
-        Метод получения всех баз данных
+        Метод получения всех баз данных, у которых в названии содержится значение параметра title
 
         :return:
         """
@@ -49,16 +40,23 @@ class DatabaseWorkoutOperator(DatabaseOperator):
         databases: list[dict] = resp.get('results')
         return [Database.model_validate(db) for db in databases]
 
-    async def get_database_by_id(self, id: UUID, title: str) -> Database | None:
-        databases: list[Database] = await self.__get_model_databases_by_title(title)
+    async def get_database_by_id(self, database_id: UUID, title: str) -> Database | None:
+        """
+        Метод получения базы данных по id, у которых в названии содержится значение параметра title
+
+        :param database_id:
+        :param title:
+        :return:
+        """
+        databases: list[Database] = await self._get_model_databases_by_title(title)
         for db in databases:
-            if db.id == id:
+            if db.id == database_id:
                 return db
         return None
 
-    async def __get_last_raw_entry_by_database_id(self,
-                                                  database_id: UUID,
-                                                  title: str) -> EntryDB:
+    async def _get_last_raw_entry_by_database_id(self,
+                                                 database_id: UUID,
+                                                 title: str) -> EntryDB:
         """
         Поучение последней записи таблицы в необработанном виде
 
@@ -76,6 +74,15 @@ class DatabaseWorkoutOperator(DatabaseOperator):
         entries.sort(key=lambda x: x.created_time, reverse=True)
         return entries[0]
 
+
+class DatabaseWorkoutOperator(DatabaseOperator):
+
+    def __init__(self,
+                 request_operator: RequestOperator) -> None:
+        super().__init__(request_operator=request_operator)
+        self.template_exercise = re.compile(r'^[1-9].')
+        self.template_exercise_number = re.compile(r"^[1-9].[1-9]$")
+
     async def get_last_processed_entry_by_database_id(self,
                                                       database_id: UUID,
                                                       title: str) -> dict[str, int]:
@@ -85,7 +92,7 @@ class DatabaseWorkoutOperator(DatabaseOperator):
         :return: В случае успеха возвращает последнюю запись таблицы в обработанном виде
         :rtype: :obj:`schemas.entry_database`
         """
-        raw_entry: EntryDB = await self.__get_last_raw_entry_by_database_id(database_id, title)
+        raw_entry: EntryDB = await self._get_last_raw_entry_by_database_id(database_id, title)
         num_exercise_res: dict = {}
         for key, value in raw_entry.properties.items():
             if value.get('type') == 'number' and re.match(self.template_exercise_number, key):
@@ -128,49 +135,16 @@ class DatabaseWorkoutOperator(DatabaseOperator):
         return mess
 
 
-class DatabaseRunOperator:
+class DatabaseRunOperator(DatabaseOperator):
 
     def __init__(self,
                  request_operator: RequestOperator) -> None:
-        self.common_data = common_data_notion
-        self.__request_operator = request_operator
-        self.__request_body_database_lister = {
-            "filter": {
-                "value": "database",
-                "property": "object"
-            }
-        }
-        self.__request_body_page_lister = {
-            "filter": {
-                "value": "page",
-                "property": "object"
-            }
-        }
-
-    async def __get_last_raw_entry_by_database_id(self,
-                                                  database_id: UUID,
-                                                  title: str) -> EntryDB:
-        """
-        Поучение последней записи таблицы в необработанном виде
-
-        :return: В случае успеха возвращает последнюю запись таблицы в необработанном виде
-        :rtype: :obj:`schemas.entry_database`
-        """
-        resp: dict = await self.__request_operator.post_request_response_data(
-            url=self.common_data.url_search,
-            headers=self.common_data.mandatory_headers | self.common_data.content_json_header,
-            data=self.__request_body_page_lister | {'query': title}
-        )
-        results = resp.get('results')
-        entries: list[EntryDB] = [EntryDB.model_validate(obj) for obj in results
-                                  if obj.get('parent') and obj.get('parent').get('database_id') == str(database_id)]
-        entries.sort(key=lambda x: x.created_time, reverse=True)
-        return entries[0]
+        super().__init__(request_operator=request_operator)
 
     async def get_report_last_workout(self,
                                       database_id: UUID,
                                       title: str) -> dict:
-        raw_entry: EntryDB = await self.__get_last_raw_entry_by_database_id(database_id, title)
+        raw_entry: EntryDB = await self._get_last_raw_entry_by_database_id(database_id, title)
         report: dict = {
             'Название': raw_entry.properties.get('Название').get('title')[0].get('plain_text'),
             'Дата': raw_entry.properties.get('Дата').get('date').get('start'),
