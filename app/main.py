@@ -1,5 +1,5 @@
 import asyncio
-from common import creds_notion_api, log_info
+from common import creds_notion_api
 from services.container import ApplicationContainer
 
 

@@ -14,6 +14,7 @@ class CommonData:
 
     def __init__(self):
         self.url_search = creds_notion_api.search_path
+        self.url_search_databases = creds_notion_api.search_databases_path
         self.mandatory_headers = {'Authorization': creds_notion_api.authorization_header,
                                   'Notion-Version': creds_notion_api.version}
         self.content_json_header = {'Content-Type': 'application/json'}

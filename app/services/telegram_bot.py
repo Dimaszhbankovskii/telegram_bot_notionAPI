@@ -1,3 +1,4 @@
+import logging
 import telebot
 from telebot.async_telebot import AsyncTeleBot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, User
@@ -40,6 +41,7 @@ class TelegramBot:
             await self.__process_database_operation(call)
 
     async def __command_start(self, message):
+        logging.info('Bot starting to work')
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(KeyboardButton(text="👋 Поздороваться"))
         keyboard.add(KeyboardButton(text="🦾 Тренировки"))
@@ -50,6 +52,7 @@ class TelegramBot:
                                     reply_markup=keyboard)
 
     async def __work_flow(self, message):
+        logging.info(f'Bot processing workflow message "{message.text}"')
         if message.text == "👋 Поздороваться":
             await self.bot.send_message(chat_id=message.chat.id,
                                         text="Привет! Спасибо, что пользуешься мной!)")
@@ -68,6 +71,7 @@ class TelegramBot:
         data_type: str = params[0]
         database_id: UUID = UUID(params[1])
         action: str = params[2]
+        logging.info(f'Bot displaying a list of commands for database "{database_id}"')
 
         databases: dict[UUID, str] = await self.database_lister.get_all_databases()
         if not databases.get(database_id):
@@ -97,14 +101,12 @@ class TelegramBot:
 
         if database_title.split('.')[1].strip() == 'Турник':
             report: dict[str, dict[str, int]] = \
-                await self.database_workout_operator.get_report_last_workout(database_id=database_id,
-                                                                             title=database_title.split('.')[1].strip())
+                await self.database_workout_operator.get_report_last_workout(database_id=database_id)
             await self.bot.send_message(chat_id=call.message.chat.id,
                                         text=self.database_workout_operator.convert_report_to_str_mess(report))
         elif database_title.split('.')[1].strip() == 'Пробежка':
             report = \
-                await self.database_run_operator.get_report_last_workout(database_id=database_id,
-                                                                         title=database_title.split('.')[1].strip())
+                await self.database_run_operator.get_report_last_workout(database_id=database_id)
             await self.bot.send_message(chat_id=call.message.chat.id,
                                         text=self.database_run_operator.convert_report_to_str_mess(report))
 
