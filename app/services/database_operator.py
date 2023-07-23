@@ -15,6 +15,20 @@ class DatabaseOperator:
         self._common_data = common_data_notion
         self._request_operator = request_operator
 
+    def get_field(self, data: dict, name: str):
+        field = data.get(name)
+        match field.get('type'):
+            case 'number':
+                return field.get('number')
+            case 'string':
+                return field.get('string')
+            case 'date':
+                return field.get('date').get('start')
+            case 'title':
+                return field.get('title')[0].get('plain_text')
+            case 'formula':
+                return self.get_field({'formula': field.get('formula')}, 'formula')
+
     async def get_database_by_id(self, database_id: UUID) -> Database | None:
         """
         Метод получения базы данных по id
@@ -115,6 +129,8 @@ class DatabaseRunOperator(DatabaseOperator):
     def __init__(self,
                  request_operator: RequestOperator) -> None:
         super().__init__(request_operator=request_operator)
+        self.params = ('Название', 'Дата', 'Дистанция (км)', 'Общее время', 'Средний темп', 'Сожжено (ккал)',
+                       'Средний пульс (уд/мин)', 'Максимальный пульс (уд/мин)', 'Время паузы')
 
     async def get_report_last_workout(self, database_id: UUID) -> dict:
         records: list[dict] = await self.get_list_record_database(
@@ -123,17 +139,7 @@ class DatabaseRunOperator(DatabaseOperator):
                               "direction": "descending"}]}
         )
         record: EntryDB = EntryDB.model_validate(records[0])
-        report: dict = {
-            'Название': record.properties.get('Название').get('title')[0].get('plain_text'),
-            'Дата': record.properties.get('Дата').get('date').get('start'),
-            'Дистанция (км)': record.properties.get('Дистанция (км)').get('number'),
-            'Общее время': record.properties.get('Общее время').get('formula').get('string'),
-            'Средний темп': record.properties.get('Средний темп').get('formula').get('string'),
-            'Сожжено (ккал)': record.properties.get('Сожжено (ккал)').get('number'),
-            'Средний пульс (уд/мин)': record.properties.get('Средний пульс (уд/мин)').get('number'),
-            'Максимальный пульс (уд/мин)': record.properties.get('Максимальный пульс (уд/мин)').get('number'),
-            'Время паузы': record.properties.get('Время паузы').get('formula').get('string')
-        }
+        report = {param: self.get_field(record.properties, param) for param in self.params}
         return report
 
     @staticmethod
