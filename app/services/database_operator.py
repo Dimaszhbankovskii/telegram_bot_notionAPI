@@ -1,5 +1,6 @@
 import logging
 import re
+import datetime
 from uuid import UUID
 
 from services.request_operator import RequestOperator
@@ -154,3 +155,46 @@ class DatabaseRunOperator(DatabaseOperator):
         :rtype: :obj:`str`
         """
         return '\n'.join([f'{key}: {value}' for key, value in report.items()])
+
+    def convert_image_str_to_data(self, mess: str) -> dict:
+        lines: list[str] = [line for line in mess.split('\n') if line]
+        lines_values: list[str] = [line for i, line in enumerate(lines) if i % 2 == 0]
+        lines_params: list[str] = [line for i, line in enumerate(lines) if i % 2 == 1]
+        data: dict = {}
+        for line_params, line_values in zip(lines_params, lines_values):
+            params: list[str] = re.split(r'\s+(?=[А-Я])', line_params)
+            values: list[str] = line_values.split()
+            for param, value in zip(params, values):
+                data[param] = value
+        return data
+
+    async def send_new_report(self, report: dict, database_id: str | None = "e9949596-756e-40af-abcb-efbac49ee837"):
+        data = {
+            "parent": {"database_id": database_id},
+            "properties": {
+                "Название": {
+                    "title": [
+                        {"text": {"content": "Тест. Пробежка"}}
+                    ]
+                },
+                "Дата": {
+                    "date": {"start": str(datetime.date.today())}
+                },
+                "Дистанция (км)": {"number": 10},
+                "Сожжено (ккал)": {"number": int(report.get('Сожжено'))},
+                "Средний пульс (уд/мин)": {"number": int(report.get('Средний пульс'))},
+                "Максимальный пульс (уд/мин)": {"number": int(report.get('Макс. пульс'))},
+                "Время (часы)": {"number": int(report.get('Время тренировки').split(':')[0])},
+                "Время (минуты)": {"number": int(report.get('Время тренировки').split(':')[1])},
+                "Время (секунды)": {"number": int(report.get('Время тренировки').split(':')[2])},
+                "Время паузы (часы)": {"number": int(report.get('Время пауз').split(':')[0])},
+                "Время паузы (минуты)": {"number": int(report.get('Время пауз').split(':')[1])},
+                "Время паузы (секунды)": {"number": int(report.get('Время пауз').split(':')[2])}
+            }
+        }
+        print(data)
+        await self._request_operator.post_request_response_data(
+            url='https://api.notion.com/v1/pages',
+            headers=self._common_data.mandatory_headers | self._common_data.content_json_header,
+            data=data
+        )
